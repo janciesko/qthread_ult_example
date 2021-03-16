@@ -21,7 +21,7 @@ int *send_buf;
 int *recv_buf;
 int num_loop;
 int sum;
-int verbose = 1;
+int verbose = 0;
 int profiling = 1;
 double t1, t2;
 
@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
   if (profiling)
     t1 = MPI_Wtime();
 
-  qb = qt_barrier_create(num_threads, REGION_BARRIER);
+  qb = qt_barrier_create(num_threads+1, REGION_BARRIER);
 
   for (int i = 0; i < num_threads; i++) {
     args[i].arg = i + 1;
