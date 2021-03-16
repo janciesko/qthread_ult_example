@@ -15,7 +15,7 @@
 #define BUF_SIZE 16384
 
 int rank;
-int size;
+int num_ranks;
 int buf_size;
 int *send_buf;
 int *recv_buf;
@@ -25,7 +25,7 @@ int verbose = 0;
 int profiling = 1;
 double t1, t2;
 
-qt_barrier_t *qb;
+qt_barrier_t * qb;
 
 #define FIELD_WIDTH 16
 
@@ -41,17 +41,18 @@ static aligned_t thread_send_func(void *arg) {
 
   int i, j;
   for (i = 0; i < num_loop; i++) {
-    for (j = 1; j < size; j++) {
-      int dest = (rank + j) % size;
+    for (j = 1; j < num_ranks; j++) {
+      int dest = (rank + j) % num_ranks;
       send_buf[0] = rank;
       if (verbose)
         printf("[rank %i, threadId %i]: MPI_Send to %i\n", rank, my_id, dest);
-      MPI_Send(send_buf, buf_size, MPI_INT, dest, 0, MPI_COMM_WORLD);
+        MPI_Send(send_buf, buf_size, MPI_INT, dest, 0, MPI_COMM_WORLD);
     }
   }
 
   // Increment barrier counter
   qt_barrier_enter(qb);
+  return 1;
 }
 
 static aligned_t thread_recv_func(void *arg) {
@@ -61,12 +62,12 @@ static aligned_t thread_recv_func(void *arg) {
 
   int i, j;
   for (i = 0; i < num_loop; i++) {
-    for (j = 1; j < size; j++) {
-      int source = (rank + size - j) % size;
+    for (j = 1; j < num_ranks; j++) {
+      int source = (rank + num_ranks - j) % num_ranks;
       if (verbose)
         printf("[rank %i, threadId %i]: MPI_Recv from %i\n", rank, my_id,
                source);
-      MPI_Recv(recv_buf, buf_size, MPI_INT, source, 0, MPI_COMM_WORLD,
+        MPI_Recv(recv_buf, buf_size, MPI_INT, source, 0, MPI_COMM_WORLD,
                MPI_STATUS_IGNORE);
       sum += recv_buf[0];
     }
@@ -74,6 +75,7 @@ static aligned_t thread_recv_func(void *arg) {
 
   // Increment barrier counter
   qt_barrier_enter(qb);
+  return 1;
 }
 
 int main(int argc, char *argv[]) {
@@ -112,7 +114,7 @@ int main(int argc, char *argv[]) {
   Args *args = (Args *)malloc(num_threads * sizeof(Args));
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 
   if (profiling)
     t1 = MPI_Wtime();
@@ -131,11 +133,13 @@ int main(int argc, char *argv[]) {
   }
 
   qt_barrier_enter(qb);
+  MPI_Barrier(MPI_COMM_WORLD);
 
   if (profiling) {
     t2 = MPI_Wtime();
     if (rank == 0) {
       fprintf(stdout, "%*s%*f\n", FIELD_WIDTH, "Time", FIELD_WIDTH, t2 - t1);
+      fflush(stdout);
     }
   }
 
@@ -146,6 +150,7 @@ int main(int argc, char *argv[]) {
 
   qt_barrier_destroy(qb);
   MPI_Finalize();
+
   qthread_finalize();
   return EXIT_SUCCESS;
 }
