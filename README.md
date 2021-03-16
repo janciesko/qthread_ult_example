@@ -1,1 +1,3 @@
-# qthread_ult_example
+# Qthread ULT Example
+
+This application showcases the use of QThreads and MPI.
