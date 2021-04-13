@@ -14,6 +14,8 @@
 #define NUM_LOOP 10
 #define BUF_SIZE 16384
 
+#define heisenbug printf("%s:%d\n", __FILE__, __LINE__); fflush(stdout)
+
 int rank;
 int num_ranks;
 int buf_size;
